@@ -1,0 +1,19 @@
+[
+	{
+		"DirLightComponent": {
+			"ambientStrength": 0.05,
+			"diffuseStrength": 0.9,
+			"specularStrength": 0.05,
+			"direction": { "x": 1, "y": -1, "z": 1 },
+			"cascadeEnds": [ 5, 10, 20, 40, 100 ]
+		},
+		"SkyBoxComponent": {
+			"left": "resources/skybox/left.jpg",
+			"right": "resources/skybox/right.jpg",
+			"top": "resources/skybox/top.jpg",
+			"bottom": "resources/skybox/bottom.jpg",
+			"front": "resources/skybox/front.jpg",
+			"back": "resources/skybox/back.jpg"
+		}
+	}
+]
