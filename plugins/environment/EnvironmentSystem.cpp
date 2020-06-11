@@ -4,6 +4,7 @@
 #include "EntityManager.hpp"
 
 #include "data/ImGuiComponent.hpp"
+#include "data/ImGuiMainMenuBarItemComponent.hpp"
 #include "meta/LoadFromJSON.hpp"
 
 #include "helpers/pluginHelper.hpp"
@@ -25,19 +26,15 @@ EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
 	loadScene("resources/default_scene.json");
 
 	em += [&](kengine::Entity & e) {
+		static ImGui::FileBrowser dialog;
+		dialog.SetTitle("Load scene");
+		dialog.SetTypeFilters({ ".json" });
+
+		e += ImGuiMainMenuBarItemComponent{ "File", "Load scene", [] {
+			dialog.Open();
+		} };
+
 		e += kengine::ImGuiComponent([] {
-			static ImGui::FileBrowser dialog;
-			dialog.SetTitle("Load scene");
-			dialog.SetTypeFilters({ ".json" });
-
-			if (ImGui::BeginMainMenuBar())
-				if (ImGui::BeginMenu("File")) {
-					if (ImGui::MenuItem("Load scene"))
-						dialog.Open();
-					ImGui::EndMenu();
-				}
-			ImGui::EndMainMenuBar();
-
 			dialog.Display();
 
 			if (dialog.HasSelected()) {
