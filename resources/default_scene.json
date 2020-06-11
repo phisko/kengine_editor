@@ -1,7 +1,7 @@
 [
 	{
 		"DirLightComponent": {
-			"ambientStrength": 0.05,
+			"ambientStrength": 0.4,
 			"diffuseStrength": 0.9,
 			"specularStrength": 0.05,
 			"direction": { "x": 1, "y": -1, "z": 1 },
