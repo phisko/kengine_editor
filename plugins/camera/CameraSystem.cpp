@@ -153,6 +153,8 @@ static void toggleMouseCapture(kengine::Entity::ID window, const putils::Point2f
 	else {
 		const auto info = kengine::cameraHelper::getViewportForPixel(*g_em, window, coords);
 		g_capturedCamera = info.camera;
+		if (g_capturedCamera == kengine::Entity::INVALID_ID)
+			return;
 		g_facings = kengine::cameraHelper::getFacings(g_em->getEntity(g_capturedCamera).get<kengine::CameraComponent>());
 	}
 
