@@ -42,7 +42,7 @@ EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
 	g_em = &em;
 
 	em += [&](kengine::Entity & e) {
-		e += kengine::CameraComponent{ { 0.f, 0.f, -1.f } };
+		e += kengine::CameraComponent{ { { 0.f, 0.f, -1.f }, { 1.f, 1.f, 1.f } } };
 		e += kengine::ViewportComponent{};
 
 		e += CameraController();
@@ -121,7 +121,6 @@ static void moveCamera(const putils::Point2f & movement) {
 	updateFacingsAndPosition();
 }
 
-#include "data/DebugGraphicsComponent.hpp"
 static void updateFacingsAndPosition() {
 	auto & e = g_em->getEntity(g_capturedCamera);
 	auto & cam = e.get<kengine::CameraComponent>();
@@ -135,11 +134,14 @@ static void updateFacingsAndPosition() {
 #pragma endregion processMouseMovement
 
 static void processMouseScroll(kengine::Entity::ID window, const putils::Point2f & coords, float yoffset) {
-	const auto info = kengine::cameraHelper::getViewportForPixel(*g_em, window, coords);
-	if (info.camera == kengine::Entity::INVALID_ID)
-		return;
+	auto cameraId = g_capturedCamera;
+	if (cameraId == kengine::Entity::INVALID_ID) {
+		cameraId = kengine::cameraHelper::getViewportForPixel(*g_em, window, coords).camera;
+		if (cameraId == kengine::Entity::INVALID_ID)
+			return;
+	}
 
-	auto & e = g_em->getEntity(info.camera);
+	auto & e = g_em->getEntity(cameraId);
 	auto & cam = e.get<kengine::CameraComponent>();
 
 	cam.frustum.position += yoffset * ZOOM_SPEED * g_facings.front;

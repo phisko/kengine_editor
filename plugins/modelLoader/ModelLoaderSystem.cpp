@@ -11,7 +11,6 @@
 
 #include "helpers/pluginHelper.hpp"
 
-#include "json.hpp"
 #include "imgui.h"
 #include "imfilebrowser.h"
 
