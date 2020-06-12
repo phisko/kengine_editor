@@ -14,7 +14,7 @@
 #include "imgui.h"
 #include "imfilebrowser.h"
 
-kengine::EntityManager * g_em;
+static kengine::EntityManager * g_em;
 
 #pragma region declarations
 static void loadModel(const char * path);
