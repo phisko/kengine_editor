@@ -31,7 +31,8 @@ EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
 		dialog.SetTypeFilters({ ".json" });
 
 		e += ImGuiMainMenuBarItemComponent{ "File", "Load scene", [] {
-			dialog.Open();
+			if (ImGui::MenuItem("Load scene"))
+				dialog.Open();
 		} };
 
 		e += kengine::ImGuiComponent([] {

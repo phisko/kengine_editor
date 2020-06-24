@@ -22,7 +22,7 @@ EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
 				if (cmp != 0)
 					return cmp < 0;
 
-				return strcmp(first.item.c_str(), second.item.c_str()) < 0;
+				return strcmp(first.itemName.c_str(), second.itemName.c_str()) < 0;
 			});
 
 			std::string currentMenu;
@@ -39,8 +39,7 @@ EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
 					}
 
 					if (currentMenuOpen)
-						if (ImGui::MenuItem(item->item.c_str()))
-							item->onClick();
+						item->draw();
 				}
 
 				if (currentMenuOpen)
