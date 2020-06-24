@@ -1,4 +1,7 @@
 #include <filesystem>
+#include <unordered_set>
+
+#include <GLFW/glfw3.h>
 
 #include "Export.hpp"
 #include "EntityManager.hpp"
@@ -8,8 +11,12 @@
 #include "data/TransformComponent.hpp"
 #include "data/InstanceComponent.hpp"
 #include "data/ImGuiMainMenuBarItemComponent.hpp"
+#include "data/GLFWWindowComponent.hpp"
+
+#include "functions/Execute.hpp"
 
 #include "helpers/pluginHelper.hpp"
+#include "helpers/assertHelper.hpp"
 
 #include "imgui.h"
 #include "imfilebrowser.h"
@@ -18,6 +25,7 @@ static kengine::EntityManager * g_em;
 
 #pragma region declarations
 static void loadModel(const char * path);
+static void execute(float deltaTime);
 #pragma endregion
 EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
 	kengine::pluginHelper::initPlugin(em);
@@ -40,6 +48,8 @@ EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
 				dialog.ClearSelected();
 			}
 		});
+
+		e += kengine::functions::Execute{ execute };
 	};
 }
 
@@ -59,4 +69,12 @@ static void loadModel(const char * path) {
 		e += kengine::GraphicsComponent{ path };
 		e += kengine::TransformComponent{};
 	};
+}
+
+static void execute(float deltaTime) {
+	for (const auto & [e, window] : g_em->getEntities<kengine::GLFWWindowComponent>())
+		glfwSetDropCallback(window.window, [](GLFWwindow * window, int nbFiles, const char ** files) {
+			kengine_assert(*g_em, nbFiles >= 1);
+			loadModel(files[0]);
+		});
 }
