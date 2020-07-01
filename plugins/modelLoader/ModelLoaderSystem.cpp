@@ -7,7 +7,6 @@
 #include "Export.hpp"
 #include "EntityManager.hpp"
 
-#include "data/ImGuiComponent.hpp"
 #include "data/GraphicsComponent.hpp"
 #include "data/TransformComponent.hpp"
 #include "data/InstanceComponent.hpp"
@@ -44,15 +43,6 @@ EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
 
 	em += [&](kengine::Entity & e) {
 		g_dialog.SetTitle("Load model");
-
-		e += kengine::ImGuiComponent([] {
-			g_dialog.Display();
-
-			if (g_dialog.HasSelected()) {
-				loadModel(g_dialog.GetSelected().string().c_str());
-				g_dialog.ClearSelected();
-			}
-		});
 
 		e += kengine::functions::Execute{ execute };
 		e += kengine::functions::OnTerminate{ saveRecentItems };
@@ -123,9 +113,17 @@ static void loadModel(const char * path) {
 }
 
 static void execute(float deltaTime) {
-	for (const auto & [e, window] : g_em->getEntities<kengine::GLFWWindowComponent>())
+	g_dialog.Display();
+
+	if (g_dialog.HasSelected()) {
+		loadModel(g_dialog.GetSelected().string().c_str());
+		g_dialog.ClearSelected();
+	}
+
+	for (const auto & [e, window] : g_em->getEntities<kengine::GLFWWindowComponent>()) {
 		glfwSetDropCallback(window.window, [](GLFWwindow * window, int nbFiles, const char ** files) {
 			kengine_assert(*g_em, nbFiles >= 1);
 			loadModel(files[0]);
 		});
+	}
 }

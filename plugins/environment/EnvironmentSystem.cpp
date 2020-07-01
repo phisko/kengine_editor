@@ -3,8 +3,8 @@
 #include "Export.hpp"
 #include "EntityManager.hpp"
 
-#include "data/ImGuiComponent.hpp"
 #include "data/ImGuiMainMenuBarItemComponent.hpp"
+#include "functions/Execute.hpp"
 #include "meta/LoadFromJSON.hpp"
 
 #include "helpers/pluginHelper.hpp"
@@ -35,14 +35,14 @@ EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
 				dialog.Open();
 		} };
 
-		e += kengine::ImGuiComponent([] {
+		e += kengine::functions::Execute{ [](float deltaTime) {
 			dialog.Display();
 
 			if (dialog.HasSelected()) {
 				loadScene(dialog.GetSelected().string().c_str());
 				dialog.ClearSelected();
 			}
-		});
+		} };
 	};
 }
 

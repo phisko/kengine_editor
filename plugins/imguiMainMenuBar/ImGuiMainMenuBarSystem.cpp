@@ -1,8 +1,8 @@
 #include "Export.hpp"
 #include "EntityManager.hpp"
 
-#include "data/ImGuiComponent.hpp"
 #include "data/ImGuiMainMenuBarItemComponent.hpp"
+#include "functions/Execute.hpp"
 
 #include "helpers/pluginHelper.hpp"
 #include "helpers/sortHelper.hpp"
@@ -13,7 +13,7 @@ EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
 	kengine::pluginHelper::initPlugin(em);
 
 	em += [&](kengine::Entity & e) {
-		e += kengine::ImGuiComponent([&] {
+		e += kengine::functions::Execute{ [&](float deltaTime) {
 			const auto entities = kengine::sortHelper::getSortedEntities<0, ImGuiMainMenuBarItemComponent>(em, [](const auto & a, const auto & b) {
 				const auto & first = *std::get<1>(a);
 				const auto & second = *std::get<1>(b);
@@ -46,6 +46,6 @@ EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
 					ImGui::EndMenu();
 			}
 			ImGui::EndMainMenuBar();
-		});
+		} };
 	};
 }

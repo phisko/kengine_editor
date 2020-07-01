@@ -8,7 +8,6 @@
 #include "data/CameraComponent.hpp"
 #include "data/ViewportComponent.hpp"
 #include "data/InputComponent.hpp"
-#include "data/ImGuiComponent.hpp"
 
 #include "functions/Execute.hpp"
 
@@ -30,7 +29,6 @@ static auto GIZMO_SCREEN_PERCENT = .1f;
 
 #pragma region declarations
 static void execute(float deltaTime);
-static void drawImGui();
 static void processMouseScroll(kengine::Entity::ID window, float xoffset, float yoffset, const putils::Point2f & coords);
 #pragma endregion
 EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
@@ -43,7 +41,6 @@ EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
 		e += kengine::ViewportComponent{};
 
 		e += kengine::functions::Execute{ execute };
-		e += kengine::ImGuiComponent{ drawImGui };
 		e += kengine::InputComponent{
 			.onScroll = processMouseScroll
 		};
@@ -58,6 +55,10 @@ EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
 	};
 }
 
+#pragma region execute
+#pragma region declarations
+static void drawImGui();
+#pragma endregion
 static void execute(float deltaTime) {
 	for (auto & [e, cam] : g_em->getEntities<kengine::CameraComponent>()) {
 		const auto facings = kengine::cameraHelper::getFacings(cam);
@@ -65,6 +66,8 @@ static void execute(float deltaTime) {
 		const auto dist = cam.frustum.position.getLength();
 		cam.frustum.position = -facings.front * dist;
 	}
+
+	drawImGui();
 }
 
 static void drawImGui() {
@@ -93,6 +96,7 @@ static void drawImGui() {
 		cam.roll = rotation.z;
 	}
 }
+#pragma endregion execute
 
 static void processMouseScroll(kengine::Entity::ID window, float xoffset, float yoffset, const putils::Point2f & coords) {
 	const auto cameraId = kengine::cameraHelper::getViewportForPixel(*g_em, window, coords).camera;
