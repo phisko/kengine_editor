@@ -1,5 +1,5 @@
 #include "Export.hpp"
-#include "EntityManager.hpp"
+#include "kengine.hpp"
 
 #include "data/ImGuiMainMenuBarItemComponent.hpp"
 #include "functions/Execute.hpp"
@@ -9,12 +9,14 @@
 
 #include "imgui.h"
 
-EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
-	kengine::pluginHelper::initPlugin(em);
+using namespace kengine;
 
-	em += [&](kengine::Entity & e) {
-		e += kengine::functions::Execute{ [&](float deltaTime) {
-			const auto entities = kengine::sortHelper::getSortedEntities<0, ImGuiMainMenuBarItemComponent>(em, [](const auto & a, const auto & b) {
+EXPORT void loadKenginePlugin(void * state) noexcept {
+	pluginHelper::initPlugin(state);
+
+	entities += [](Entity & e) noexcept {
+		e += functions::Execute{ [](float deltaTime) noexcept {
+			const auto entities = sortHelper::getSortedEntities<0, ImGuiMainMenuBarItemComponent>([](const auto & a, const auto & b) noexcept {
 				const auto & first = *std::get<1>(a);
 				const auto & second = *std::get<1>(b);
 

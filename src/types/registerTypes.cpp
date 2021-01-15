@@ -1,7 +1,7 @@
 #include "helpers/registerTypeHelper.hpp"
-#include "Point.hpp"
+#include "Rect.hpp"
 
-#define REGISTER_FUNC_DECL(COMP) void register##COMP##Component(kengine::EntityManager & em);
+#define REGISTER_FUNC_DECL(COMP) void register##COMP##Component() noexcept;
 
 REGISTER_FUNC_DECL(Adjustable);
 REGISTER_FUNC_DECL(Animation);
@@ -26,7 +26,6 @@ REGISTER_FUNC_DECL(Pathfinding);
 REGISTER_FUNC_DECL(Physics);
 REGISTER_FUNC_DECL(Python);
 REGISTER_FUNC_DECL(Selected);
-REGISTER_FUNC_DECL(Shader);
 REGISTER_FUNC_DECL(Skeleton);
 REGISTER_FUNC_DECL(SkyBox);
 REGISTER_FUNC_DECL(Sprite);
@@ -36,7 +35,7 @@ REGISTER_FUNC_DECL(Transform);
 
 #define REGISTER_FUNC_NAME(COMP) register##COMP##Component
 
-using RegisterFunc = void(*)(kengine::EntityManager &);
+using RegisterFunc = void(*)() noexcept;
 static const RegisterFunc funcs[] = {
 	REGISTER_FUNC_NAME(Adjustable),
 	REGISTER_FUNC_NAME(Animation),
@@ -61,7 +60,6 @@ static const RegisterFunc funcs[] = {
 	REGISTER_FUNC_NAME(Physics),
 	REGISTER_FUNC_NAME(Python),
 	REGISTER_FUNC_NAME(Selected),
-	REGISTER_FUNC_NAME(Shader),
 	REGISTER_FUNC_NAME(Skeleton),
 	REGISTER_FUNC_NAME(SkyBox),
 	REGISTER_FUNC_NAME(Sprite),
@@ -70,12 +68,12 @@ static const RegisterFunc funcs[] = {
 	REGISTER_FUNC_NAME(Transform),
 };
 
-void registerTypes(kengine::EntityManager & em) {
+void registerTypes() noexcept {
 	kengine::registerTypes<
 		putils::Rect3f, putils::Point3f,
 		putils::Color, putils::NormalizedColor
-	>(em);
+	>();
 
 	for (const auto f : funcs)
-		f(em);
+		f();
 }

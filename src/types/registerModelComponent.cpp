@@ -1,10 +1,8 @@
 #include "helpers/registerTypeHelper.hpp"
 #include "data/ModelComponent.hpp"
-#include "data/TextureModelComponent.hpp"
 
-void registerModelComponent(kengine::EntityManager & em) {
+void registerModelComponent() noexcept {
 	kengine::registerComponents<
-		kengine::ModelComponent,
-		kengine::TextureModelComponent
-	>(em);
+		kengine::ModelComponent
+	>();
 }

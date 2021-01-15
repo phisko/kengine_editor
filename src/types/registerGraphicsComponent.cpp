@@ -1,8 +1,8 @@
 #include "helpers/registerTypeHelper.hpp"
 #include "data/GraphicsComponent.hpp"
 
-void registerGraphicsComponent(kengine::EntityManager & em) {
+void registerGraphicsComponent() noexcept {
 	kengine::registerComponents<
 		kengine::GraphicsComponent
-	>(em);
+	>();
 }

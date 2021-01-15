@@ -1,8 +1,8 @@
 #include "helpers/registerTypeHelper.hpp"
 #include "functions/Execute.hpp"
 
-void registerExecuteComponent(kengine::EntityManager & em) {
+void registerExecuteComponent() noexcept {
 	kengine::registerComponents<
 		kengine::functions::Execute
-	>(em);
+	>();
 }

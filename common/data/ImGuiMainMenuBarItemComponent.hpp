@@ -8,11 +8,15 @@ struct ImGuiMainMenuBarItemComponent {
 	std::string menu;
 	std::string itemName;
 	std::function<void()> draw;
+};
 
-	putils_reflection_class_name(ImGuiMainMenuBarItemComponent);
+#define refltype ImGuiMainMenuBarItemComponent
+putils_reflection_info{
+	putils_reflection_class_name;
 	putils_reflection_attributes(
-		putils_reflection_attribute(&ImGuiMainMenuBarItemComponent::menu),
-		putils_reflection_attribute(&ImGuiMainMenuBarItemComponent::itemName),
-		putils_reflection_attribute(&ImGuiMainMenuBarItemComponent::draw)
+		putils_reflection_attribute(menu),
+		putils_reflection_attribute(itemName),
+		putils_reflection_attribute(draw)
 	);
 };
+#undef refltype

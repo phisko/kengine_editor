@@ -1,8 +1,8 @@
 #include "helpers/registerTypeHelper.hpp"
 #include "data/OnClickComponent.hpp"
 
-void registerOnClickComponent(kengine::EntityManager & em) {
+void registerOnClickComponent() noexcept {
 	kengine::registerComponents<
 		kengine::OnClickComponent
-	>(em);
+	>();
 }

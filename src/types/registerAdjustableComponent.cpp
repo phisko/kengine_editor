@@ -1,8 +1,8 @@
 #include "helpers/registerTypeHelper.hpp"
 #include "data/AdjustableComponent.hpp"
 
-void registerAdjustableComponent(kengine::EntityManager & em) {
+void registerAdjustableComponent() noexcept {
 	kengine::registerComponents<
 		kengine::AdjustableComponent
-	>(em);
+	>();
 }

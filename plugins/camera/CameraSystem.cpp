@@ -2,7 +2,7 @@
 #include <glm/gtx/quaternion.hpp>
 
 #include "Export.hpp"
-#include "EntityManager.hpp"
+#include "kengine.hpp"
 
 #include "data/AdjustableComponent.hpp"
 #include "data/CameraComponent.hpp"
@@ -19,93 +19,91 @@
 #include "imgui.h"
 #include "ImGuizmo.h"
 
-static kengine::EntityManager * g_em;
-
 #pragma region Adjustables
 static auto ZOOM_SPEED = .1f;
 static auto GIZMO_LENGTH = 1.f;
 static auto GIZMO_SCREEN_PERCENT = .1f;
 #pragma endregion Adjustables
 
-#pragma region declarations
-static void execute(float deltaTime);
-static void processMouseScroll(kengine::Entity::ID window, float xoffset, float yoffset, const putils::Point2f & coords);
-#pragma endregion
-EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
-	kengine::pluginHelper::initPlugin(em);
+using namespace kengine;
 
-	g_em = &em;
+EXPORT void loadKenginePlugin(void * state) {
+	struct impl {
+		static void init() noexcept {
+			entities += [&](Entity & e) {
+				e += CameraComponent{ { { 0.f, 0.f, -1.f }, { 1.f, 1.f, 1.f } } };
+				e += ViewportComponent{};
 
-	em += [&](kengine::Entity & e) {
-		e += kengine::CameraComponent{ { { 0.f, 0.f, -1.f }, { 1.f, 1.f, 1.f } } };
-		e += kengine::ViewportComponent{};
+				e += functions::Execute{ execute };
+				e += InputComponent{
+					.onScroll = processMouseScroll
+				};
 
-		e += kengine::functions::Execute{ execute };
-		e += kengine::InputComponent{
-			.onScroll = processMouseScroll
-		};
+				e += AdjustableComponent{
+					"Camera", {
+						{ "Zoom speed", &ZOOM_SPEED },
+						{ "Gizmo length", &GIZMO_LENGTH },
+						{ "Gizmo screen percentage", &GIZMO_SCREEN_PERCENT }
+					}
+				};
+			};
+		}
 
-		e += kengine::AdjustableComponent{
-			"Camera", {
-				{ "Zoom speed", &ZOOM_SPEED },
-				{ "Gizmo length", &GIZMO_LENGTH },
-				{ "Gizmo screen percentage", &GIZMO_SCREEN_PERCENT }
+		static void execute(float deltaTime) noexcept {
+			drawImGui();
+
+			if (ImGui::GetIO().WantCaptureMouse)
+				return;
+
+			for (auto [e, cam] : entities.with<CameraComponent>()) {
+				const auto facings = cameraHelper::getFacings(cam);
+
+				const auto dist = putils::getLength(cam.frustum.position);
+				cam.frustum.position = -facings.front * dist;
 			}
-		};
+		}
+
+		static void drawImGui() noexcept {
+			ImGuizmo::BeginFrame();
+
+			for (const auto & [_, cam, viewport] : entities.with<CameraComponent, ViewportComponent>()) {
+				auto & io = ImGui::GetIO();
+
+				const putils::Point2f scaledDisplaySize = { io.DisplaySize.x * viewport.boundingBox.size.x, io.DisplaySize.y * viewport.boundingBox.size.y };
+
+				const ImVec2 size{ GIZMO_SCREEN_PERCENT * scaledDisplaySize.x, GIZMO_SCREEN_PERCENT * scaledDisplaySize.x };
+
+				const auto imguiViewport = ImGui::GetMainViewport();
+				const ImVec2 pos{
+					imguiViewport->Pos.x + io.DisplaySize.x * viewport.boundingBox.position.x + scaledDisplaySize.x - size.x,
+					imguiViewport->Pos.y + io.DisplaySize.y * viewport.boundingBox.position.y + scaledDisplaySize.y - size.y
+				};
+
+				auto view = matrixHelper::getViewMatrix(cam, viewport);
+				ImGuizmo::ViewManipulate(glm::value_ptr(view), GIZMO_LENGTH, pos, size, 0);
+
+				const auto quat = glm::conjugate(glm::toQuat(view));
+				const auto rotation = matrixHelper::getRotation(glm::toMat4(quat));
+				cam.yaw = rotation.y + putils::pi;
+				cam.pitch = rotation.x;
+				cam.roll = rotation.z;
+			}
+		}
+
+		static void processMouseScroll(EntityID window, float xoffset, float yoffset, const putils::Point2f & coords) noexcept {
+			const auto cameraId = cameraHelper::getViewportForPixel(window, coords).camera;
+			if (cameraId == INVALID_ID)
+				return;
+
+			auto e = entities[cameraId];
+			auto & cam = e.get<CameraComponent>();
+
+			const auto facings = cameraHelper::getFacings(cam);
+			cam.frustum.position += yoffset * ZOOM_SPEED * facings.front;
+		}
 	};
+
+	pluginHelper::initPlugin(state);
+	impl::init();
 }
 
-#pragma region execute
-#pragma region declarations
-static void drawImGui();
-#pragma endregion
-static void execute(float deltaTime) {
-	for (auto & [e, cam] : g_em->getEntities<kengine::CameraComponent>()) {
-		const auto facings = kengine::cameraHelper::getFacings(cam);
-
-		const auto dist = cam.frustum.position.getLength();
-		cam.frustum.position = -facings.front * dist;
-	}
-
-	drawImGui();
-}
-
-static void drawImGui() {
-	ImGuizmo::BeginFrame();
-
-	for (const auto & [_, cam, viewport] : g_em->getEntities<kengine::CameraComponent, kengine::ViewportComponent>()) {
-		auto & io = ImGui::GetIO();
-
-		const putils::Point2f scaledDisplaySize = { io.DisplaySize.x * viewport.boundingBox.size.x, io.DisplaySize.y * viewport.boundingBox.size.y };
-
-		const ImVec2 size{ GIZMO_SCREEN_PERCENT * scaledDisplaySize.x, GIZMO_SCREEN_PERCENT * scaledDisplaySize.x };
-
-		const auto imguiViewport = ImGui::GetMainViewport();
-		const ImVec2 pos{
-			imguiViewport->Pos.x + io.DisplaySize.x * viewport.boundingBox.position.x + scaledDisplaySize.x - size.x,
-			imguiViewport->Pos.y + io.DisplaySize.y * viewport.boundingBox.position.y + scaledDisplaySize.y - size.y
-		};
-
-		auto view = kengine::matrixHelper::getViewMatrix(cam, viewport);
-		ImGuizmo::ViewManipulate(glm::value_ptr(view), GIZMO_LENGTH, pos, size, 0);
-
-		const auto quat = glm::conjugate(glm::toQuat(view));
-		const auto rotation = kengine::matrixHelper::getRotation(glm::toMat4(quat));
-		cam.yaw = rotation.y + putils::pi;
-		cam.pitch = rotation.x;
-		cam.roll = rotation.z;
-	}
-}
-#pragma endregion execute
-
-static void processMouseScroll(kengine::Entity::ID window, float xoffset, float yoffset, const putils::Point2f & coords) {
-	const auto cameraId = kengine::cameraHelper::getViewportForPixel(*g_em, window, coords).camera;
-	if (cameraId == kengine::Entity::INVALID_ID)
-		return;
-
-	auto & e = g_em->getEntity(cameraId);
-	auto & cam = e.get<kengine::CameraComponent>();
-
-	const auto facings = kengine::cameraHelper::getFacings(cam);
-	cam.frustum.position += yoffset * ZOOM_SPEED * facings.front;
-}

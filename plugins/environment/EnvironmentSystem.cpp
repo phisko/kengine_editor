@@ -1,7 +1,8 @@
 #include <filesystem>
+#include <fstream>
 
 #include "Export.hpp"
-#include "EntityManager.hpp"
+#include "kengine.hpp"
 
 #include "data/ImGuiMainMenuBarItemComponent.hpp"
 #include "functions/Execute.hpp"
@@ -13,65 +14,60 @@
 #include "imgui.h"
 #include "imfilebrowser.h"
 
-static kengine::EntityManager * g_em;
+using namespace kengine;
 
-#pragma region declarations
-static void loadScene(const char * path);
-#pragma endregion
-EXPORT void loadKenginePlugin(kengine::EntityManager & em) {
-	kengine::pluginHelper::initPlugin(em);
+EXPORT void loadKenginePlugin(void * state) noexcept {
+	struct impl {
+		static void init() noexcept {
+			loadScene("resources/default_scene.json");
 
-	g_em = &em;
+			entities += [](Entity & e) noexcept {
+				static ImGui::FileBrowser dialog;
+				dialog.SetTitle("Load scene");
+				dialog.SetTypeFilters({ ".json" });
 
-	loadScene("resources/default_scene.json");
+				e += ImGuiMainMenuBarItemComponent{ "File", "Load scene", []() noexcept {
+					if (ImGui::MenuItem("Load scene"))
+						dialog.Open();
+				} };
 
-	em += [&](kengine::Entity & e) {
-		static ImGui::FileBrowser dialog;
-		dialog.SetTitle("Load scene");
-		dialog.SetTypeFilters({ ".json" });
+				e += functions::Execute{ [](float deltaTime) noexcept {
+					dialog.Display();
 
-		e += ImGuiMainMenuBarItemComponent{ "File", "Load scene", [] {
-			if (ImGui::MenuItem("Load scene"))
-				dialog.Open();
-		} };
+					if (dialog.HasSelected()) {
+						loadScene(dialog.GetSelected().string().c_str());
+						dialog.ClearSelected();
+					}
+				} };
+			};
+		}
 
-		e += kengine::functions::Execute{ [](float deltaTime) {
-			dialog.Display();
+		static void loadScene(const char * path) noexcept {
+			static std::vector<EntityID> toRemove;
 
-			if (dialog.HasSelected()) {
-				loadScene(dialog.GetSelected().string().c_str());
-				dialog.ClearSelected();
+			for (const auto id : toRemove)
+				entities.remove(id);
+			toRemove.clear();
+
+			std::ifstream f(path);
+			if (!f)
+				return;
+			const auto json = putils::json::parse(f);
+
+			for (const auto & jsonEntity : json) {
+				entities += [&](Entity & e) {
+					toRemove.push_back(e.id);
+					loadEntity(e, jsonEntity);
+				};
 			}
-		} };
+		}
+
+		static void loadEntity(Entity & e, const putils::json & json) noexcept {
+			for (const auto & [_, loader] : entities.with<meta::LoadFromJSON>())
+				loader(json, e);
+		}
 	};
+
+	pluginHelper::initPlugin(state);
+	impl::init();
 }
-
-#pragma region loadScene
-#pragma region declarations
-static void loadEntity(kengine::Entity & e, const putils::json & json);
-#pragma endregion
-static void loadScene(const char * path) {
-	static std::vector<kengine::Entity::ID> toRemove;
-
-	for (const auto id : toRemove)
-		g_em->removeEntity(id);
-	toRemove.clear();
-
-	std::ifstream f(path);
-	if (!f)
-		return;
-	const auto json = putils::json::parse(f);
-
-	for (const auto & jsonEntity : json) {
-		*g_em += [&](kengine::Entity & e) {
-			toRemove.push_back(e.id);
-			loadEntity(e, jsonEntity);
-		};
-	}
-}
-
-static void loadEntity(kengine::Entity & e, const putils::json & json) {
-	for (const auto & [_, loader] : g_em->getEntities<kengine::meta::LoadFromJSON>())
-		loader(json, e);
-}
-#pragma endregion loadScene

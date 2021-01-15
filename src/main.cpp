@@ -2,7 +2,7 @@
 
 #include "go_to_bin_dir.hpp"
 #include "PluginManager.hpp"
-#include "EntityManager.hpp"
+#include "kengine.hpp"
 
 #include "helpers/mainLoop.hpp"
 #include "helpers/imguiLuaHelper.hpp"
@@ -13,6 +13,7 @@
 #include "systems/onclick/OnClickSystem.hpp"
 
 #include "systems/imgui_adjustable/ImGuiAdjustableSystem.hpp"
+#include "systems/imgui_engine_stats/ImGuiEngineStatsSystem.hpp"
 #include "systems/imgui_tool/ImGuiToolSystem.hpp"
 #include "systems/imgui_entity_editor/ImGuiEntityEditorSystem.hpp"
 #include "systems/imgui_entity_selector/ImGuiEntitySelectorSystem.hpp"
@@ -21,6 +22,7 @@
 #include "systems/polyvox/PolyVoxSystem.hpp"
 #include "systems/polyvox/MagicaVoxelSystem.hpp"
 #include "systems/assimp/AssimpSystem.hpp"
+#include "systems/glfw/GLFWSystem.hpp"
 #include "systems/opengl/OpenGLSystem.hpp"
 #include "systems/opengl_sprites/OpenGLSpritesSystem.hpp"
 #include "systems/recast/RecastSystem.hpp"
@@ -39,45 +41,49 @@ int main(int, char **av) {
 	ShowWindow(GetConsoleWindow(), SW_HIDE);
 #endif
 
-	kengine::EntityManager em(std::thread::hardware_concurrency());
+	kengine::init(std::thread::hardware_concurrency());
 
-	extern void registerTypes(kengine::EntityManager &);
-	registerTypes(em);
+	extern void registerTypes() noexcept;
+	registerTypes();
 
-	em += [&](kengine::Entity & e) {
+	kengine::entities += [](kengine::Entity & e) noexcept {
 		e += kengine::WindowComponent{
 			"Kengine Editor"
 		};
 	};
 
-	em += kengine::InputSystem(em);
-	em += kengine::LuaSystem(em);
-	em += kengine::PythonSystem(em);
+	kengine::entities += kengine::InputSystem();
+	kengine::entities += kengine::LuaSystem();
+	kengine::entities += kengine::PythonSystem();
 	
-	em += kengine::OnClickSystem(em);
+	kengine::entities += kengine::OnClickSystem();
 
-	em += kengine::OpenGLSystem(em);
-	em += kengine::OpenGLSpritesSystem(em);
-	em += kengine::PolyVoxSystem(em);
-	em += kengine::MagicaVoxelSystem(em);
-	em += kengine::AssImpSystem(em);
+	kengine::entities += kengine::OpenGLSystem();
+	kengine::entities += kengine::GLFWSystem();
+	kengine::entities += kengine::OpenGLSpritesSystem();
+	kengine::entities += kengine::PolyVoxSystem();
+	kengine::entities += kengine::MagicaVoxelSystem();
+	kengine::entities += kengine::AssImpSystem();
 
-	em += kengine::BulletSystem(em);
-	em += kengine::KinematicSystem(em);
-	em += kengine::RecastSystem(em);
+	kengine::entities += kengine::BulletSystem();
+	kengine::entities += kengine::KinematicSystem();
+	kengine::entities += kengine::RecastSystem();
 
-	em += kengine::ImGuiAdjustableSystem(em);
-	em += kengine::ImGuiToolSystem(em);
-	em += kengine::ImGuiEntityEditorSystem(em);
-	em += kengine::ImGuiEntitySelectorSystem(em);
-	em += kengine::ImGuiPromptSystem(em);
+	kengine::entities += kengine::ImGuiAdjustableSystem();
+	kengine::entities += kengine::ImGuiEngineStatsSystem();
+	kengine::entities += kengine::ImGuiToolSystem();
+	kengine::entities += kengine::ImGuiEntityEditorSystem();
+	kengine::entities += kengine::ImGuiEntitySelectorSystem();
+	kengine::entities += kengine::ImGuiPromptSystem();
 
 	putils::PluginManager pm;
-	pm.rescanDirectory("plugins", "loadKenginePlugin", em);
+	pm.rescanDirectory("plugins", "loadKenginePlugin", kengine::getState());
 
-	kengine::imguiLuaHelper::initBindings(em);
+	kengine::imguiLuaHelper::initBindings();
 
-	kengine::mainLoop::timeModulated::run(em);
+	kengine::mainLoop::timeModulated::run();
+
+	kengine::terminate();
 
 	return 0;
 }

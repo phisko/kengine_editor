@@ -3,10 +3,10 @@
 #include "data/ViewportComponent.hpp"
 #include "data/WindowComponent.hpp"
 
-void registerCameraComponent(kengine::EntityManager & em) {
+void registerCameraComponent() noexcept {
 	kengine::registerComponents<
 		kengine::CameraComponent,
 		kengine::ViewportComponent,
 		kengine::WindowComponent
-	>(em);
+	>();
 }

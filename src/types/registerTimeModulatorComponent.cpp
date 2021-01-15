@@ -1,8 +1,8 @@
 #include "helpers/registerTypeHelper.hpp"
 #include "data/TimeModulatorComponent.hpp"
 
-void registerTimeModulatorComponent(kengine::EntityManager & em) {
+void registerTimeModulatorComponent() noexcept {
 	kengine::registerComponents<
 		kengine::TimeModulatorComponent
-	>(em);
+	>();
 }
