@@ -145,7 +145,6 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 
 				switch (gizmo.type) {
 				case GizmoComponent::Translate:
-					model = glm::transpose(model);
 					ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), ImGuizmo::TRANSLATE, ImGuizmo::WORLD, glm::value_ptr(model), glm::value_ptr(deltaMatrix));
 					transform.boundingBox.position += matrixHelper::getPosition(deltaMatrix);
 					break;
