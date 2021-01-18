@@ -104,18 +104,6 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 		}
 
 		static void setupWindow(const ViewportComponent & viewport) noexcept {
-			auto & io = ImGui::GetIO();
-			const putils::Rect2f displayRegion = {
-				{
-					viewport.boundingBox.position.x * io.DisplaySize.x,
-					viewport.boundingBox.position.y * io.DisplaySize.y
-				},
-				{
-					viewport.boundingBox.size.x * io.DisplaySize.x,
-					viewport.boundingBox.size.y * io.DisplaySize.y
-				}
-			};
-
 			const auto imguiViewport = ImGui::GetMainViewport();
 			ImGui::SetNextWindowViewport(imguiViewport->ID);
 			ImGui::SetNextWindowPos(imguiViewport->Pos);
@@ -124,10 +112,9 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			ImGui::Begin("Gizmos", nullptr, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoInputs);
 			ImGuizmo::SetDrawlist();
 
-			ImGuizmo::SetRect(
-				displayRegion.position.x, displayRegion.position.y,
-				displayRegion.size.x, displayRegion.size.y
-			);
+			const auto windowSize = ImGui::GetWindowSize();
+			const auto windowPos = ImGui::GetWindowPos();
+			ImGuizmo::SetRect(windowPos.x, windowPos.y, windowSize.x, windowSize.y);
 		}
 
 		static void drawGizmos(CameraComponent & cam, const ViewportComponent & viewport) noexcept {
