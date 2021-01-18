@@ -172,7 +172,6 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 					break;
 				}
 				default:
-					kengine_assert_failed("Unknown gizmo type");
 					static_assert(putils::magic_enum::enum_count<GizmoComponent::Type>() == 3);
 					break;
 				}
