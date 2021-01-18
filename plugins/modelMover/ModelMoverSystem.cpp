@@ -137,6 +137,12 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			for (auto [e, transform, instance, selected] : entities.with<TransformComponent, InstanceComponent, SelectedComponent>()) {
 				nextGizmo();
 
+				auto & debugGraphics = e.attach<DebugGraphicsComponent>();
+				if (debugGraphics.elements.empty())
+					debugGraphics.elements.push_back(DebugGraphicsComponent::Element(
+						DebugGraphicsComponent::Sphere{}, { 0.f, 0.f, 0.f }, {}, DebugGraphicsComponent::ReferenceSpace::World
+					));
+
 				auto & gizmo = e.attach<GizmoComponent>();
 
 				const auto * modelTransform = instanceHelper::tryGetModel<TransformComponent>(instance);
