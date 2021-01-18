@@ -13,6 +13,7 @@
 #include "data/SelectedComponent.hpp"
 #include "data/ViewportComponent.hpp"
 #include "data/WindowComponent.hpp"
+#include "data/DebugGraphicsComponent.hpp"
 
 #include "functions/Execute.hpp"
 #include "functions/GetEntityInPixel.hpp"
