@@ -5,15 +5,14 @@
 #include "Export.hpp"
 #include "kengine.hpp"
 
+#include "data/AdjustableComponent.hpp"
 #include "data/CameraComponent.hpp"
+#include "data/DebugGraphicsComponent.hpp"
 #include "data/InputComponent.hpp"
 #include "data/InstanceComponent.hpp"
-#include "data/ModelComponent.hpp"
 #include "data/TransformComponent.hpp"
 #include "data/SelectedComponent.hpp"
 #include "data/ViewportComponent.hpp"
-#include "data/WindowComponent.hpp"
-#include "data/DebugGraphicsComponent.hpp"
 
 #include "functions/Execute.hpp"
 #include "functions/GetEntityInPixel.hpp"
@@ -45,6 +44,10 @@ putils_reflection_info{
 };
 #undef refltype
 
+static struct {
+	float sphereAlpha = .5f;
+} adjustables;
+
 static int g_gizmoId = 0;
 static bool g_shouldOpenContextMenu = false;
 static GizmoComponent * g_gizmoForContextMenu = nullptr;
@@ -56,24 +59,27 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 		static void init() noexcept {
 			entities += [](Entity & e) {
 				e += functions::Execute{ [](float deltaTime) noexcept { drawImGui(); } };
-				e += InputComponent{
-					.onMouseButton = [](EntityID window, int button, const putils::Point2f & screenCoordinates, bool pressed) noexcept {
-						if (button != GLFW_MOUSE_BUTTON_RIGHT || !pressed)
-							return;
-
-						EntityID id = INVALID_ID;
-						for (const auto & [e, getEntityInPixel] : entities.with<functions::GetEntityInPixel>())
-							id = getEntityInPixel(window, screenCoordinates);
-
-						if (id == INVALID_ID)
-							return;
-
-						auto e = entities[id];
-						g_gizmoForContextMenu = &e.attach<GizmoComponent>();
-						g_shouldOpenContextMenu = true;
-					}
-				};
+				e += InputComponent{ .onMouseButton = onClick };
+				e += AdjustableComponent{ "Model mover", {
+					{ "Identity sphere alpha", &adjustables.sphereAlpha }
+				} };
 			};
+		}
+
+		static void onClick(EntityID window, int button, const putils::Point2f & screenCoordinates, bool pressed) noexcept {
+			if (button != GLFW_MOUSE_BUTTON_RIGHT || !pressed)
+				return;
+
+			EntityID id = INVALID_ID;
+			for (const auto & [e, getEntityInPixel] : entities.with<functions::GetEntityInPixel>())
+				id = getEntityInPixel(window, screenCoordinates);
+
+			if (id == INVALID_ID)
+				return;
+
+			auto e = entities[id];
+			g_gizmoForContextMenu = &e.attach<GizmoComponent>();
+			g_shouldOpenContextMenu = true;
 		}
 
 		static void drawImGui() noexcept {
@@ -82,7 +88,7 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			ImGuizmo::BeginFrame();
 
 			for (const auto & [_, cam, viewport] : entities.with<CameraComponent, ViewportComponent>()) {
-				setupWindow(viewport);
+				setupWindow();
 				drawGizmos(cam, viewport);
 				ImGui::End(); // begin was called in setupWindow
 			}
@@ -103,7 +109,7 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			}
 		}
 
-		static void setupWindow(const ViewportComponent & viewport) noexcept {
+		static void setupWindow() noexcept {
 			const auto imguiViewport = ImGui::GetMainViewport();
 			ImGui::SetNextWindowViewport(imguiViewport->ID);
 			ImGui::SetNextWindowPos(imguiViewport->Pos);
@@ -121,38 +127,36 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			const auto proj = matrixHelper::getProjMatrix(cam, viewport, 0.001f, 1000.f);
 			const auto view = matrixHelper::getViewMatrix(cam, viewport);
 
-
 			for (auto [e, transform, instance, selected] : entities.with<TransformComponent, InstanceComponent, SelectedComponent>()) {
 				nextGizmo();
 
 				auto & debugGraphics = e.attach<DebugGraphicsComponent>();
 				if (debugGraphics.elements.empty())
-					debugGraphics.elements.push_back(DebugGraphicsComponent::Element(
-						DebugGraphicsComponent::Sphere{}, { 0.f, 0.f, 0.f }, {}, DebugGraphicsComponent::ReferenceSpace::World
-					));
+					debugGraphics.elements.push_back(DebugGraphicsComponent::Element{
+						DebugGraphicsComponent::Sphere{}, { 0.f, 0.f, 0.f }, putils::NormalizedColor{ 1.f, 1.f, 1.f, .5f }, DebugGraphicsComponent::ReferenceSpace::World
+					});
 
 				auto & gizmo = e.attach<GizmoComponent>();
 
-				const auto * modelTransform = instanceHelper::tryGetModel<TransformComponent>(instance);
-				auto model = matrixHelper::getModelMatrix(transform, modelTransform);
-				glm::mat4 deltaMatrix;
+				auto modelMatrix = matrixHelper::getModelMatrix(transform);
 
+				glm::mat4 deltaMatrix;
 				switch (gizmo.type) {
 				case GizmoComponent::Translate:
-					ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), ImGuizmo::TRANSLATE, ImGuizmo::WORLD, glm::value_ptr(model), glm::value_ptr(deltaMatrix));
+					ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), ImGuizmo::TRANSLATE, ImGuizmo::WORLD, glm::value_ptr(modelMatrix), glm::value_ptr(deltaMatrix));
 					transform.boundingBox.position += matrixHelper::getPosition(deltaMatrix);
 					break;
 				case GizmoComponent::Scale:
 				{
-					model = glm::transpose(model);
-					ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), ImGuizmo::SCALE, ImGuizmo::WORLD, glm::value_ptr(model), glm::value_ptr(deltaMatrix));
-					transform.boundingBox.size = matrixHelper::getScale(model);
+					// modelMatrix = glm::transpose(modelMatrix);
+					ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), ImGuizmo::SCALE, ImGuizmo::WORLD, glm::value_ptr(modelMatrix), glm::value_ptr(deltaMatrix));
+					transform.boundingBox.size = matrixHelper::getScale(modelMatrix);
 					break;
 				}
 				case GizmoComponent::Rotate:
 				{
-					model = glm::transpose(model);
-					ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), ImGuizmo::ROTATE, ImGuizmo::WORLD, glm::value_ptr(model), glm::value_ptr(deltaMatrix));
+					// modelMatrix = glm::transpose(modelMatrix);
+					ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), ImGuizmo::ROTATE, ImGuizmo::WORLD, glm::value_ptr(modelMatrix), glm::value_ptr(deltaMatrix));
 					const auto rotation = matrixHelper::getRotation(deltaMatrix);
 					transform.yaw += rotation.y;
 					transform.pitch += rotation.x;
@@ -163,6 +167,19 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 					static_assert(putils::magic_enum::enum_count<GizmoComponent::Type>() == 3);
 					break;
 				}
+
+				if (ImGuizmo::IsUsing())
+					continue;
+
+				auto model = entities[instance.model];
+				auto & modelTransform = model.attach<TransformComponent>();
+
+				modelTransform.boundingBox.position += transform.boundingBox.position;
+				modelTransform.boundingBox.size *= transform.boundingBox.size;
+				modelTransform.yaw += transform.yaw;
+				modelTransform.pitch += transform.pitch;
+				modelTransform.roll += transform.roll;
+				transform = TransformComponent{};
 			}
 		}
 

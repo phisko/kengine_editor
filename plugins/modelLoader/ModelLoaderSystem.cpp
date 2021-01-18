@@ -88,9 +88,9 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			if (toRemove != INVALID_ID) {
 				const auto & e = entities[toRemove];
 				if (e.has<InstanceComponent>())
-					entities.remove(e.get<InstanceComponent>().model);
+					entities -= e.get<InstanceComponent>().model;
 
-				entities.remove(toRemove);
+				entities -= toRemove;
 			}
 
 			entities += [&](Entity & e) noexcept {

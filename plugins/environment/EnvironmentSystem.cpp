@@ -46,7 +46,7 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			static std::vector<EntityID> toRemove;
 
 			for (const auto id : toRemove)
-				entities.remove(id);
+				entities -= id;
 			toRemove.clear();
 
 			std::ifstream f(path);
