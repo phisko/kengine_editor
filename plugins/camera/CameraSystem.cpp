@@ -19,13 +19,14 @@
 #include "imgui.h"
 #include "ImGuizmo.h"
 
-#pragma region Adjustables
-static auto ZOOM_SPEED = .1f;
-static auto GIZMO_LENGTH = 1.f;
-static auto GIZMO_SCREEN_PERCENT = .1f;
-#pragma endregion Adjustables
-
 using namespace kengine;
+
+static struct {
+	float lookAtY = .5f;
+	float zoomSpeed = .1f;
+	float gizmoLength = 1.f;
+	float gizmoScreenPercent = .1f;
+} adjustables;
 
 EXPORT void loadKenginePlugin(void * state) {
 	struct impl {
@@ -41,9 +42,10 @@ EXPORT void loadKenginePlugin(void * state) {
 
 				e += AdjustableComponent{
 					"Camera", {
-						{ "Zoom speed", &ZOOM_SPEED },
-						{ "Gizmo length", &GIZMO_LENGTH },
-						{ "Gizmo screen percentage", &GIZMO_SCREEN_PERCENT }
+						{ "Look at Y", &adjustables.lookAtY },
+						{ "Zoom speed", &adjustables.zoomSpeed },
+						{ "Gizmo length", &adjustables.gizmoLength },
+						{ "Gizmo screen percentage", &adjustables.gizmoScreenPercent }
 					}
 				};
 			};
@@ -58,8 +60,9 @@ EXPORT void loadKenginePlugin(void * state) {
 			for (auto [e, cam] : entities.with<CameraComponent>()) {
 				const auto facings = cameraHelper::getFacings(cam);
 
-				const auto dist = putils::getLength(cam.frustum.position);
-				cam.frustum.position = -facings.front * dist;
+				const putils::Point3f lookAt{ 0.f, adjustables.lookAtY, 0.f };
+				const auto dist = putils::getLength(cam.frustum.position - lookAt);
+				cam.frustum.position = lookAt - facings.front * dist;
 			}
 		}
 
@@ -71,7 +74,7 @@ EXPORT void loadKenginePlugin(void * state) {
 
 				const putils::Point2f scaledDisplaySize = { io.DisplaySize.x * viewport.boundingBox.size.x, io.DisplaySize.y * viewport.boundingBox.size.y };
 
-				const ImVec2 size{ GIZMO_SCREEN_PERCENT * scaledDisplaySize.x, GIZMO_SCREEN_PERCENT * scaledDisplaySize.x };
+				const ImVec2 size{ adjustables.gizmoScreenPercent * scaledDisplaySize.x, adjustables.gizmoScreenPercent * scaledDisplaySize.x };
 
 				const auto imguiViewport = ImGui::GetMainViewport();
 				const ImVec2 pos{
@@ -80,7 +83,7 @@ EXPORT void loadKenginePlugin(void * state) {
 				};
 
 				auto view = matrixHelper::getViewMatrix(cam, viewport);
-				ImGuizmo::ViewManipulate(glm::value_ptr(view), GIZMO_LENGTH, pos, size, 0);
+				ImGuizmo::ViewManipulate(glm::value_ptr(view), adjustables.gizmoLength, pos, size, 0);
 
 				const auto quat = glm::conjugate(glm::toQuat(view));
 				const auto rotation = matrixHelper::getRotation(glm::toMat4(quat));
@@ -99,7 +102,7 @@ EXPORT void loadKenginePlugin(void * state) {
 			auto & cam = e.get<CameraComponent>();
 
 			const auto facings = cameraHelper::getFacings(cam);
-			cam.frustum.position += yoffset * ZOOM_SPEED * facings.front;
+			cam.frustum.position += yoffset * adjustables.zoomSpeed * facings.front;
 		}
 	};
 
