@@ -19,6 +19,7 @@
 #include "systems/imgui_entity_selector/ImGuiEntitySelectorSystem.hpp"
 #include "systems/imgui_prompt/ImGuiPromptSystem.hpp"
 
+#include "systems/model_creator/ModelCreatorSystem.hpp"
 #include "systems/polyvox/PolyVoxSystem.hpp"
 #include "systems/polyvox/MagicaVoxelSystem.hpp"
 #include "systems/assimp/AssimpSystem.hpp"
@@ -57,6 +58,7 @@ int main(int, char **av) {
 	kengine::entities += kengine::PythonSystem();
 	
 	kengine::entities += kengine::OnClickSystem();
+	kengine::entities += kengine::ModelCreatorSystem();
 
 	kengine::entities += kengine::OpenGLSystem();
 	kengine::entities += kengine::GLFWSystem();
