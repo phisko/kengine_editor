@@ -2,6 +2,7 @@
 
 #include "kengine.hpp"
 #include "Export.hpp"
+#include "helpers/pluginHelper.hpp"
 
 #include "data/AdjustableComponent.hpp"
 #include "data/InputComponent.hpp"
@@ -11,8 +12,6 @@
 
 #include "functions/Execute.hpp"
 #include "functions/GetEntityInPixel.hpp"
-
-#include "helpers/pluginHelper.hpp"
 
 struct HoveredComponent {};
 

@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <fstream>
+#include "helpers/pluginHelper.hpp"
 
 #include "Export.hpp"
 #include "kengine.hpp"
@@ -8,9 +9,8 @@
 #include "functions/Execute.hpp"
 #include "meta/LoadFromJSON.hpp"
 
-#include "helpers/pluginHelper.hpp"
+#include "helpers/jsonHelper.hpp"
 
-#include "json.hpp"
 #include "imgui.h"
 #include "imfilebrowser.h"
 
@@ -55,16 +55,9 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			const auto json = putils::json::parse(f);
 
 			for (const auto & jsonEntity : json) {
-				entities += [&](Entity & e) {
-					toRemove.push_back(e.id);
-					loadEntity(e, jsonEntity);
-				};
+				const auto e = jsonHelper::createEntity(jsonEntity);
+				toRemove.push_back(e.id);
 			}
-		}
-
-		static void loadEntity(Entity & e, const putils::json & json) noexcept {
-			for (const auto & [_, loader] : entities.with<meta::LoadFromJSON>())
-				loader(json, e);
 		}
 	};
 

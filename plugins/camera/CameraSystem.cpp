@@ -1,8 +1,9 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-#include "Export.hpp"
 #include "kengine.hpp"
+#include "Export.hpp"
+#include "helpers/pluginHelper.hpp"
 
 #include "data/AdjustableComponent.hpp"
 #include "data/CameraComponent.hpp"
@@ -13,7 +14,6 @@
 
 #include "helpers/cameraHelper.hpp"
 #include "helpers/matrixHelper.hpp"
-#include "helpers/pluginHelper.hpp"
 
 #include "angle.hpp"
 #include "imgui.h"
