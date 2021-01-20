@@ -2,12 +2,12 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <filesystem>
 
-#include "Export.hpp"
 #include "kengine.hpp"
+#include "Export.hpp"
+#include "helpers/pluginHelper.hpp"
 
 #include "data/AdjustableComponent.hpp"
 #include "data/CameraComponent.hpp"
-#include "data/DebugGraphicsComponent.hpp"
 #include "data/InputComponent.hpp"
 #include "data/InstanceComponent.hpp"
 #include "data/TransformComponent.hpp"
@@ -18,12 +18,14 @@
 #include "functions/GetEntityInPixel.hpp"
 
 #include "helpers/instanceHelper.hpp"
-#include "helpers/pluginHelper.hpp"
 #include "helpers/matrixHelper.hpp"
 
 #include "imgui.h"
 #include "ImGuizmo.h"
 #include "magic_enum.hpp"
+#include "epsilon.hpp"
+
+using namespace kengine;
 
 struct GizmoComponent {
 	enum Type {
@@ -33,6 +35,8 @@ struct GizmoComponent {
 	};
 
 	Type type = Translate;
+	TransformComponent transform;
+	TransformComponent modelTransformSave;
 };
 
 #define refltype GizmoComponent 
@@ -44,15 +48,12 @@ putils_reflection_info{
 };
 #undef refltype
 
-static struct {
-	float sphereAlpha = .5f;
-} adjustables;
-
 static int g_gizmoId = 0;
 static bool g_shouldOpenContextMenu = false;
 static GizmoComponent * g_gizmoForContextMenu = nullptr;
 
-using namespace kengine;
+static bool g_uniformScale = true;
+float putils::Point3f:: * g_currentScaleModifier = nullptr;
 
 EXPORT void loadKenginePlugin(void * state) noexcept {
 	struct impl {
@@ -60,9 +61,6 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			entities += [](Entity & e) {
 				e += functions::Execute{ [](float deltaTime) noexcept { drawImGui(); } };
 				e += InputComponent{ .onMouseButton = onClick };
-				e += AdjustableComponent{ "Model mover", {
-					{ "Identity sphere alpha", &adjustables.sphereAlpha }
-				} };
 			};
 		}
 
@@ -99,12 +97,11 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			}
 
 			if (ImGui::BeginPopup("Gizmo type")) {
-				int i = 0;
-				for (const auto name : putils::magic_enum::enum_names<GizmoComponent::Type>()) {
+				for (const auto [gizmoType, name] : putils::magic_enum::enum_entries<GizmoComponent::Type>())
 					if (ImGui::MenuItem(putils::string<64>(name)))
-						g_gizmoForContextMenu->type = (GizmoComponent::Type)i;
-					++i;
-				}
+						g_gizmoForContextMenu->type = gizmoType;
+
+				ImGui::MenuItem("Uniform scale", nullptr, &g_uniformScale);
 				ImGui::EndPopup();
 			}
 		}
@@ -127,30 +124,45 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			const auto proj = matrixHelper::getProjMatrix(cam, viewport, 0.001f, 1000.f);
 			const auto view = matrixHelper::getViewMatrix(cam, viewport);
 
-			for (auto [e, transform, instance, selected] : entities.with<TransformComponent, InstanceComponent, SelectedComponent>()) {
+			for (auto [e, instance, selected] : entities.with<InstanceComponent, SelectedComponent>()) {
 				nextGizmo();
 
-				auto & debugGraphics = e.attach<DebugGraphicsComponent>();
-				if (debugGraphics.elements.empty())
-					debugGraphics.elements.push_back(DebugGraphicsComponent::Element{
-						DebugGraphicsComponent::Sphere{}, { 0.f, 0.f, 0.f }, putils::NormalizedColor{ 1.f, 1.f, 1.f, .5f }, DebugGraphicsComponent::ReferenceSpace::World
-					});
+				auto model = entities[instance.model];
+				auto & modelTransform = model.attach<TransformComponent>();
 
+				const bool gizmoExists = e.has<GizmoComponent>();
 				auto & gizmo = e.attach<GizmoComponent>();
+				if (!gizmoExists)
+					gizmo.modelTransformSave = modelTransform;
 
-				auto modelMatrix = matrixHelper::getModelMatrix(transform);
-
+				auto modelMatrix = matrixHelper::getModelMatrix(gizmo.transform);
 				glm::mat4 deltaMatrix;
 				switch (gizmo.type) {
 				case GizmoComponent::Translate:
 					ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), ImGuizmo::TRANSLATE, ImGuizmo::WORLD, glm::value_ptr(modelMatrix), glm::value_ptr(deltaMatrix));
-					transform.boundingBox.position += matrixHelper::getPosition(deltaMatrix);
+					gizmo.transform.boundingBox.position += matrixHelper::getPosition(deltaMatrix);
 					break;
 				case GizmoComponent::Scale:
 				{
 					// modelMatrix = glm::transpose(modelMatrix);
 					ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), ImGuizmo::SCALE, ImGuizmo::WORLD, glm::value_ptr(modelMatrix), glm::value_ptr(deltaMatrix));
-					transform.boundingBox.size = matrixHelper::getScale(modelMatrix);
+					const auto previousSize = gizmo.transform.boundingBox.size;
+					auto & size = gizmo.transform.boundingBox.size;
+					size = matrixHelper::getScale(modelMatrix);
+					if (g_uniformScale) {
+						putils::reflection::for_each_attribute<putils::Point3f>([&](const auto name, const auto member) noexcept {
+							if (g_currentScaleModifier != nullptr && member != g_currentScaleModifier)
+								return;
+
+							if (g_currentScaleModifier == nullptr && putils::epsilonEquals(previousSize.*member, size.*member))
+								return;
+
+							g_currentScaleModifier = member;
+							putils::reflection::for_each_attribute(size, [&](const auto name, auto & otherMember) {
+								otherMember = size.*member;
+								});
+							});
+					}
 					break;
 				}
 				case GizmoComponent::Rotate:
@@ -158,9 +170,9 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 					// modelMatrix = glm::transpose(modelMatrix);
 					ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), ImGuizmo::ROTATE, ImGuizmo::WORLD, glm::value_ptr(modelMatrix), glm::value_ptr(deltaMatrix));
 					const auto rotation = matrixHelper::getRotation(deltaMatrix);
-					transform.yaw += rotation.y;
-					transform.pitch += rotation.x;
-					transform.roll += rotation.z;
+					gizmo.transform.yaw += rotation.y;
+					gizmo.transform.pitch += rotation.x;
+					gizmo.transform.roll += rotation.z;
 					break;
 				}
 				default:
@@ -168,18 +180,18 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 					break;
 				}
 
-				if (ImGuizmo::IsUsing())
-					continue;
-
-				auto model = entities[instance.model];
-				auto & modelTransform = model.attach<TransformComponent>();
-
-				modelTransform.boundingBox.position += transform.boundingBox.position;
-				modelTransform.boundingBox.size *= transform.boundingBox.size;
-				modelTransform.yaw += transform.yaw;
-				modelTransform.pitch += transform.pitch;
-				modelTransform.roll += transform.roll;
-				transform = TransformComponent{};
+				if (ImGuizmo::IsUsing()) {
+					modelTransform.boundingBox.position = gizmo.transform.boundingBox.position + gizmo.modelTransformSave.boundingBox.position;
+					modelTransform.boundingBox.size = gizmo.transform.boundingBox.size * gizmo.modelTransformSave.boundingBox.size;
+					modelTransform.yaw = gizmo.transform.yaw + gizmo.modelTransformSave.yaw;
+					modelTransform.pitch = gizmo.transform.pitch + gizmo.modelTransformSave.pitch;
+					modelTransform.roll = gizmo.transform.roll + gizmo.modelTransformSave.roll;
+				}
+				else {
+					gizmo.transform = {};
+					gizmo.modelTransformSave = modelTransform;
+					g_currentScaleModifier = nullptr;
+				}
 			}
 		}
 
