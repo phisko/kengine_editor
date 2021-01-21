@@ -8,6 +8,7 @@
 
 #include "data/AdjustableComponent.hpp"
 #include "data/CameraComponent.hpp"
+#include "data/EditorComponent.hpp"
 #include "data/InputComponent.hpp"
 #include "data/InstanceComponent.hpp"
 #include "data/TransformComponent.hpp"
@@ -48,6 +49,7 @@ putils_reflection_info{
 };
 #undef refltype
 
+static bool g_active = true;
 static int g_gizmoId = 0;
 static bool g_shouldOpenContextMenu = false;
 static GizmoComponent * g_gizmoForContextMenu = nullptr;
@@ -59,6 +61,7 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 	struct impl {
 		static void init() noexcept {
 			entities += [](Entity & e) {
+				e += EditorComponent{ "Transform", &g_active };
 				e += functions::Execute{ [](float deltaTime) noexcept { drawImGui(); } };
 				e += InputComponent{ .onMouseButton = onClick };
 			};
@@ -81,6 +84,9 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 		}
 
 		static void drawImGui() noexcept {
+			if (!g_active)
+				return;
+
 			g_gizmoId = 0;
 
 			ImGuizmo::BeginFrame();

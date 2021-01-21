@@ -156,7 +156,7 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 		static void loadFromJSON(const char * path) noexcept {
 			std::ifstream f(path);
 			if (!f) {
-				kengine_assert_failed(putils::concat("Failed to open '", path, "'"));
+				kengine_assert_failed("Failed to open '", path, "'");
 				return;
 			}
 
@@ -177,7 +177,7 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 
 			std::ofstream f(path);
 			if (!f) {
-				kengine_assert_failed(putils::concat("Could not open '", path, "' for writing"));
+				kengine_assert_failed("Could not open '", path, "' for writing");
 				return;
 			}
 
