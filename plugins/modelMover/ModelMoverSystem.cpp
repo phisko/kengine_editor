@@ -9,14 +9,13 @@
 #include "data/AdjustableComponent.hpp"
 #include "data/CameraComponent.hpp"
 #include "data/EditorComponent.hpp"
-#include "data/InputComponent.hpp"
 #include "data/InstanceComponent.hpp"
 #include "data/TransformComponent.hpp"
 #include "data/SelectedComponent.hpp"
 #include "data/ViewportComponent.hpp"
 
-#include "functions/Execute.hpp"
-#include "functions/GetEntityInPixel.hpp"
+#include "functions/DrawGizmos.hpp"
+#include "functions/OnClick.hpp"
 
 #include "helpers/instanceHelper.hpp"
 #include "helpers/matrixHelper.hpp"
@@ -29,13 +28,13 @@
 using namespace kengine;
 
 struct GizmoComponent {
-	enum Type {
+	enum class Type {
 		Translate,
 		Scale,
 		Rotate
 	};
 
-	Type type = Translate;
+	Type type = Type::Translate;
 	TransformComponent transform;
 	TransformComponent modelTransformSave;
 };
@@ -62,73 +61,24 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 		static void init() noexcept {
 			entities += [](Entity & e) {
 				e += EditorComponent{ "Transform", &g_active };
-				e += functions::Execute{ [](float deltaTime) noexcept { drawImGui(); } };
-				e += InputComponent{ .onMouseButton = onClick };
+				e += ::functions::DrawGizmos{ drawGizmos };
 			};
 		}
 
-		static void onClick(EntityID window, int button, const putils::Point2f & screenCoordinates, bool pressed) noexcept {
-			if (button != GLFW_MOUSE_BUTTON_RIGHT || !pressed)
-				return;
-
-			EntityID id = INVALID_ID;
-			for (const auto & [e, getEntityInPixel] : entities.with<functions::GetEntityInPixel>())
-				id = getEntityInPixel(window, screenCoordinates);
-
-			if (id == INVALID_ID)
-				return;
-
-			auto e = entities[id];
-			g_gizmoForContextMenu = &e.attach<GizmoComponent>();
-			g_shouldOpenContextMenu = true;
-		}
-
-		static void drawImGui() noexcept {
+		static void drawGizmos(const glm::mat4 & proj, const glm::mat4 & view, const ImVec2 & windowSize, const ImVec2 & windowPos) noexcept {
 			if (!g_active)
 				return;
 
+			processGizmos(proj, view, windowSize, windowPos);
+			processContextMenu();
+		}
+		
+		static void processGizmos(const glm::mat4 & proj, const glm::mat4 & view, const ImVec2 & windowSize, const ImVec2 & windowPos) noexcept {
 			g_gizmoId = 0;
 
 			ImGuizmo::BeginFrame();
-
-			for (const auto & [_, cam, viewport] : entities.with<CameraComponent, ViewportComponent>()) {
-				setupWindow();
-				drawGizmos(cam, viewport);
-				ImGui::End(); // begin was called in setupWindow
-			}
-
-			if (g_shouldOpenContextMenu) {
-				ImGui::OpenPopup("Gizmo type");
-				g_shouldOpenContextMenu = false;
-			}
-
-			if (ImGui::BeginPopup("Gizmo type")) {
-				for (const auto [gizmoType, name] : putils::magic_enum::enum_entries<GizmoComponent::Type>())
-					if (ImGui::MenuItem(putils::string<64>(name)))
-						g_gizmoForContextMenu->type = gizmoType;
-
-				ImGui::MenuItem("Uniform scale", nullptr, &g_uniformScale);
-				ImGui::EndPopup();
-			}
-		}
-
-		static void setupWindow() noexcept {
-			const auto imguiViewport = ImGui::GetMainViewport();
-			ImGui::SetNextWindowViewport(imguiViewport->ID);
-			ImGui::SetNextWindowPos(imguiViewport->Pos);
-			ImGui::SetNextWindowSize(imguiViewport->Size);
-
-			ImGui::Begin("Gizmos", nullptr, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoInputs);
 			ImGuizmo::SetDrawlist();
-
-			const auto windowSize = ImGui::GetWindowSize();
-			const auto windowPos = ImGui::GetWindowPos();
 			ImGuizmo::SetRect(windowPos.x, windowPos.y, windowSize.x, windowSize.y);
-		}
-
-		static void drawGizmos(CameraComponent & cam, const ViewportComponent & viewport) noexcept {
-			const auto proj = matrixHelper::getProjMatrix(cam, viewport, 0.001f, 1000.f);
-			const auto view = matrixHelper::getViewMatrix(cam, viewport);
 
 			for (auto [e, instance, selected] : entities.with<InstanceComponent, SelectedComponent>()) {
 				nextGizmo();
@@ -144,11 +94,11 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 				auto modelMatrix = matrixHelper::getModelMatrix(gizmo.transform);
 				glm::mat4 deltaMatrix;
 				switch (gizmo.type) {
-				case GizmoComponent::Translate:
+				case GizmoComponent::Type::Translate:
 					ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), ImGuizmo::TRANSLATE, ImGuizmo::WORLD, glm::value_ptr(modelMatrix), glm::value_ptr(deltaMatrix));
 					gizmo.transform.boundingBox.position += matrixHelper::getPosition(deltaMatrix);
 					break;
-				case GizmoComponent::Scale:
+				case GizmoComponent::Type::Scale:
 				{
 					// modelMatrix = glm::transpose(modelMatrix);
 					ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), ImGuizmo::SCALE, ImGuizmo::WORLD, glm::value_ptr(modelMatrix), glm::value_ptr(deltaMatrix));
@@ -171,7 +121,7 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 					}
 					break;
 				}
-				case GizmoComponent::Rotate:
+				case GizmoComponent::Type::Rotate:
 				{
 					// modelMatrix = glm::transpose(modelMatrix);
 					ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj), ImGuizmo::ROTATE, ImGuizmo::WORLD, glm::value_ptr(modelMatrix), glm::value_ptr(deltaMatrix));
@@ -201,8 +151,39 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			}
 		}
 
-		static void nextGizmo() {
+		static void nextGizmo() noexcept {
 			ImGuizmo::SetID(g_gizmoId++);
+		}
+
+		static void processContextMenu() noexcept {
+			for (auto [e, instance, noOnClick] : entities.with<InstanceComponent, no<kengine::functions::OnClick>>()) {
+				auto & gizmo = e.attach<GizmoComponent>();
+				e += kengine::functions::OnClick{ [&gizmo](int button) {
+					onClick(button, gizmo);
+				} };
+			}
+
+			if (g_shouldOpenContextMenu) {
+				ImGui::OpenPopup("Gizmo type");
+				g_shouldOpenContextMenu = false;
+			}
+
+			if (ImGui::BeginPopup("Gizmo type")) {
+				for (const auto [gizmoType, name] : putils::magic_enum::enum_entries<GizmoComponent::Type>())
+					if (ImGui::MenuItem(putils::string<64>(name)))
+						g_gizmoForContextMenu->type = gizmoType;
+
+				ImGui::MenuItem("Uniform scale", nullptr, &g_uniformScale);
+				ImGui::EndPopup();
+			}
+		}
+
+		static void onClick(int button, GizmoComponent & gizmo) noexcept {
+			if (button != GLFW_MOUSE_BUTTON_RIGHT)
+				return;
+
+			g_gizmoForContextMenu = &gizmo;
+			g_shouldOpenContextMenu = true;
 		}
 	};
 
