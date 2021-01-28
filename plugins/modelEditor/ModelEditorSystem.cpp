@@ -19,7 +19,11 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 		}
 
 		static void execute(float deltaTime) noexcept {
-			for (const auto & [e, instance] : entities.with<InstanceComponent>()) {
+			for (auto [e, instance] : entities.with<InstanceComponent>()) {
+				if (ImGui::Begin("Object"))
+					imguiHelper::editEntity(e);
+				ImGui::End();
+
 				auto model = entities[instance.model];
 				if (ImGui::Begin("Model"))
 					imguiHelper::editEntity(model);
