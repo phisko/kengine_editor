@@ -156,7 +156,7 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 		}
 
 		static void processContextMenu() noexcept {
-			for (auto [e, instance, noOnClick] : entities.with<InstanceComponent, no<kengine::functions::OnClick>>()) {
+			for (auto [e, instance] : entities.with<InstanceComponent>()) {
 				auto & gizmo = e.attach<GizmoComponent>();
 				e += kengine::functions::OnClick{ [&gizmo](int button) {
 					onClick(button, gizmo);
@@ -164,11 +164,11 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			}
 
 			if (g_shouldOpenContextMenu) {
-				ImGui::OpenPopup("Gizmo type");
+				ImGui::OpenPopup("Gizmo type#mover");
 				g_shouldOpenContextMenu = false;
 			}
 
-			if (ImGui::BeginPopup("Gizmo type")) {
+			if (ImGui::BeginPopup("Gizmo type#mover")) {
 				for (const auto [gizmoType, name] : putils::magic_enum::enum_entries<GizmoComponent::Type>())
 					if (ImGui::MenuItem(putils::string<64>(name)))
 						g_gizmoForContextMenu->type = gizmoType;
