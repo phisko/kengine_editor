@@ -8,33 +8,57 @@
 #include "data/EditorComponent.hpp"
 #include "data/ImGuiMainMenuBarItemComponent.hpp"
 
+#include "functions/Execute.hpp"
 #include "functions/OnTerminate.hpp"
 
 #include "helpers/assertHelper.hpp"
+#include "helpers/sortHelper.hpp"
 #include "imgui.h"
 
 using namespace kengine;
 
 static constexpr auto RECENT_FILE = "recentEditor.txt";
+static EntityID g_id = INVALID_ID;
 
 EXPORT void loadKenginePlugin(void * state) noexcept {
 	struct impl {
 		static void init() noexcept {
 			entities += [](Entity & e) noexcept {
+				g_id = e.id;
+
 				e += ImGuiMainMenuBarItemComponent{ "Edit", "All", drawImGui };
+				e += functions::Execute{ execute };
 				e += functions::OnTerminate{ onTerminate };
 			};
 		}
 
-		static void drawImGui() noexcept {
-			static bool first = true;
-			if (first) {
-				reloadRecent();
-				first = false;
-			}
+		static void execute(float deltaTime) noexcept {
+			reloadRecent();
+			entities[g_id].detach<functions::Execute>();
+		}
 
-			for (const auto & [e, editor] : entities.with<EditorComponent>())
-				ImGui::MenuItem(editor.name.c_str(), nullptr, editor.active);
+		static void drawImGui() noexcept {
+			const auto sortedEntities = sortHelper::getSortedEntities<EditorComponent>([](const auto & lhsTuple, const auto & rhsTuple) {
+				const auto lhs = std::get<1>(lhsTuple);
+				const auto rhs = std::get<1>(rhsTuple);
+				return strcmp(lhs->name.c_str(), rhs->name.c_str()) < 0;
+			});
+
+			for (const auto & [e, editor] : sortedEntities) {
+				if (*editor->active) {
+					ImGui::MenuItem(editor->name.c_str(), nullptr, editor->active);
+					*editor->active = true;
+					continue;
+				}
+
+				if (!ImGui::MenuItem(editor->name.c_str(), nullptr, editor->active))
+					continue;
+
+				for (const auto & [other, otherEditor] : entities.with<EditorComponent>())
+					if (other.id != e.id)
+						*otherEditor.active = false;
+				return;
+			}
 		}
 
 		static void reloadRecent() noexcept {
