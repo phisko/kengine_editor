@@ -14,13 +14,20 @@
 #include "data/InstanceComponent.hpp"
 #include "data/ImGuiMainMenuBarItemComponent.hpp"
 #include "data/GLFWWindowComponent.hpp"
+#include "data/ModelComponent.hpp"
 #include "data/SelectedComponent.hpp"
 
 #include "functions/Execute.hpp"
 #include "functions/OnTerminate.hpp"
 
+#include "meta/Has.hpp"
+#include "meta/SaveToJSON.hpp"
+#include "meta/ToSave.hpp"
+
 #include "helpers/assertHelper.hpp"
 #include "helpers/jsonHelper.hpp"
+#include "helpers/sortHelper.hpp"
+#include "helpers/typeHelper.hpp"
 
 #include "imgui.h"
 #include "imfilebrowser.h"
@@ -48,6 +55,8 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 	struct impl {
 		static void init() noexcept {
 			loadRecentItems();
+
+			typeHelper::getTypeEntity<ModelComponent>() += ::meta::ToSave{};
 
 			entities += [](Entity & e) noexcept {
 				e += functions::Execute{ execute };
@@ -188,9 +197,24 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 				return;
 			}
 			const auto model = entities[instance->model];
-
-			const auto json = jsonHelper::saveEntity(model);
+			const auto json = saveToJSON(model);
 			f << json.dump(4);
+		}
+
+		static putils::json saveToJSON(const Entity & e) noexcept {
+			putils::json ret;
+
+			const auto types = sortHelper::getNameSortedEntities<KENGINE_COMPONENT_COUNT,
+				kengine::meta::Has, kengine::meta::SaveToJSON, ::meta::ToSave
+			>();
+
+			for (const auto & [_, name, has, save, toSave] : types) {
+				if (!has->call(e))
+					continue;
+				ret[name->name.c_str()] = save->call(e);
+			}
+
+			return ret;
 		}
 	};
 
