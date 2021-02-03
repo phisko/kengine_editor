@@ -30,7 +30,7 @@
 #include "helpers/typeHelper.hpp"
 
 #include "imgui.h"
-#include "imfilebrowser.h"
+#include "helpers/imfilebrowser.h"
 
 #include "magic_enum.hpp"
 #include "concat.hpp"
