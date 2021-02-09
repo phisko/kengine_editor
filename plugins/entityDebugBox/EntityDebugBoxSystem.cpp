@@ -38,21 +38,25 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 				return;
 			}
 
-			for (auto [e, instance, debugGraphics] : entities.with<InstanceComponent, DebugGraphicsComponent>()) {
-				auto & element = debugGraphics.elements[0];
+			const auto setElementProperties = [](DebugGraphicsComponent::Element & element) noexcept {
 				element.color = adjustables.boxColor;
 				element.pos.y = adjustables.size.y / 2.f;
+				element.box.size = adjustables.size;
+			};
 
-				auto & box = std::get<DebugGraphicsComponent::Box>(element.data);
-				box.size = adjustables.size;
+			for (auto [e, instance, debugGraphics] : entities.with<InstanceComponent, DebugGraphicsComponent>()) {
+				auto & element = debugGraphics.elements[0];
+				setElementProperties(element);
 			}
 
-			for (auto [e, instance, noDebugGraphics] : entities.with<InstanceComponent, no<DebugGraphicsComponent>>())
-				e += DebugGraphicsComponent{ {
-					DebugGraphicsComponent::Element{
-						DebugGraphicsComponent::Box{ adjustables.size }, { 0.f, .5f, 0.f }, adjustables.boxColor, DebugGraphicsComponent::ReferenceSpace::World
-					}
-				} };
+			for (auto [e, instance, noDebugGraphics] : entities.with<InstanceComponent, no<DebugGraphicsComponent>>()) {
+				DebugGraphicsComponent::Element debug; {
+					debug.type = DebugGraphicsComponent::Type::Box;
+					debug.color = adjustables.boxColor;
+					setElementProperties(debug);
+				}
+				e += DebugGraphicsComponent{ { std::move(debug) } };
+			}
 		}
 	};
 
