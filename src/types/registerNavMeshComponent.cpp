@@ -4,6 +4,6 @@
 void registerNavMeshComponent() noexcept {
 	kengine::registerComponents<
 		kengine::NavMeshComponent,
-		kengine::RebuildNavMeshComponent
+		kengine::functions::GetPath
 	>();
 }
