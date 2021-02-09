@@ -155,6 +155,10 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 				};
 			}
 
+			addToRecentItems(path);
+		}
+
+		static void addToRecentItems(const char * path) noexcept {
 			const auto it = std::find(g_recentItems.begin(), g_recentItems.end(), path);
 			if (it != g_recentItems.end())
 				g_recentItems.splice(g_recentItems.begin(), g_recentItems, it);
@@ -199,6 +203,8 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			const auto model = entities[instance->model];
 			const auto json = saveToJSON(model);
 			f << json.dump(4);
+
+			addToRecentItems(path);
 		}
 
 		static putils::json saveToJSON(const Entity & e) noexcept {
