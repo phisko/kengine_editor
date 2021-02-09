@@ -43,14 +43,16 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 			if (ImGui::Begin("Animations")) {
 				for (auto [e, instance] : entities.with<InstanceComponent>()) {
 					auto model = entities[instance.model];
+					const auto modelAnim = model.tryGet<ModelAnimationComponent>();
+					if (!modelAnim)
+						continue;
 
 					auto & animFiles = model.attach<AnimationFilesComponent>();
 					displayAnimFileLoader(animFiles);
 
 					auto & anim = e.attach<AnimationComponent>();
-					const auto & modelAnim = model.get<ModelAnimationComponent>();
-					displayAnimPicker(anim, modelAnim);
-					displaySpeedAndTimeEditor(anim, modelAnim);
+					displayAnimPicker(anim, *modelAnim);
+					displaySpeedAndTimeEditor(anim, *modelAnim);
 				}
 			}
 			ImGui::End();
