@@ -15,7 +15,7 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 	pluginHelper::initPlugin(state);
 
 	entities += [](Entity & e) noexcept {
-		e += functions::Execute{ [](float deltaTime) noexcept {
+		e += functions::Execute{ [&](float deltaTime) noexcept {
 			const auto entities = sortHelper::getSortedEntities<0, ImGuiMainMenuBarItemComponent>([](const auto & a, const auto & b) noexcept {
 				const auto & first = *std::get<1>(a);
 				const auto & second = *std::get<1>(b);
