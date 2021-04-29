@@ -103,7 +103,7 @@ EXPORT void loadKenginePlugin(void * state) noexcept {
 					e += PhysicsComponent{};
 				};
 			}
-			else
+			else if (g_actor != INVALID_ID)
 				entities -= g_actor;
 		}
 
